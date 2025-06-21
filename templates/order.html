@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>注文ページ</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 1em;
+      padding: 0;
+      background: #fafafa;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 1em;
+    }
+    form {
+      max-width: 400px;
+      margin: 0 auto;
+      background: white;
+      padding: 1em;
+      border-radius: 8px;
+      box-shadow: 0 0 6px rgba(0,0,0,0.1);
+    }
+    .menu-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.2em;
+    }
+    label {
+      font-size: 1.2em;
+      flex: 1;
+    }
+    input[type="number"] {
+      width: 60px;
+      font-size: 1.2em;
+      padding: 0.3em;
+      border: 1px solid #ccc;
+      border-radius: 5px;
+      text-align: center;
+      -webkit-appearance: none;
+      -moz-appearance: textfield;
+    }
+    input[type="number"]::-webkit-inner-spin-button, 
+    input[type="number"]::-webkit-outer-spin-button { 
+      -webkit-appearance: none;
+      margin: 0; 
+    }
+    .quantity-control {
+      display: flex;
+      align-items: center;
+      gap: 0.3em;
+    }
+    .quantity-control button {
+      font-size: 1.2em;
+      padding: 0.2em 0.6em;
+      border: 1px solid #ccc;
+      background-color: #f0f0f0;
+      border-radius: 5px;
+      cursor: pointer;
+      user-select: none;
+    }
+    .quantity-control button:hover {
+      background-color: #ddd;
+    }
+    button.submit-btn {
+      width: 100%;
+      background-color: #007bff;
+      color: white;
+      font-size: 1.3em;
+      border: none;
+      padding: 0.7em;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    button.submit-btn:hover {
+      background-color: #0056b3;
+    }
+    p.current-number {
+      text-align: center;
+      margin-top: 1.5em;
+      font-size: 1.2em;
+      color: #333;
+    }
+  </style>
+</head>
+<body>
+  <h1>注文ページ</h1>
+  <form method="post">
+    {% for item in menu %}
+      <div class="menu-item">
+        <label for="item-{{ loop.index }}">{{ item }}</label>
+        <input type="hidden" name="item" value="{{ item }}">
+        <div class="quantity-control">
+          <button type="button" onclick="decrease({{ loop.index }})">−</button>
+          <input type="number" id="item-{{ loop.index }}" name="quantity" min="0" value="0" />
+          <button type="button" onclick="increase({{ loop.index }})">＋</button>
+        </div>
+      </div>
+    {% endfor %}
+    <button class="submit-btn" type="submit">注文する</button>
+  </form>
+  <p class="current-number">現在の呼び出し番号：<strong>{{ current }}</strong></p>
+
+  <script>
+    function increase(id) {
+      const input = document.getElementById(`item-${id}`);
+      input.value = parseInt(input.value || "0") + 1;
+    }
+
+    function decrease(id) {
+      const input = document.getElementById(`item-${id}`);
+      const current = parseInt(input.value || "0");
+      if (current > 0) input.value = current - 1;
+    }
+  </script>
+</body>
+</html>

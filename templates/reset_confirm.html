@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>リセット確認</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; text-align: center; }
+    .btn {
+      font-size: 1.2em;
+      padding: 0.5em 1em;
+      margin: 1em;
+      cursor: pointer;
+      border: none;
+      border-radius: 4px;
+    }
+    .btn-reset { background-color: #d9534f; color: white; }
+    .btn-cancel { background-color: #5bc0de; color: white; }
+  </style>
+</head>
+<body>
+  <h1>全ての注文をリセットしますか？</h1>
+  <p>この操作は元に戻せません。よろしいですか？</p>
+
+  <form action="{{ url_for('reset_all') }}" method="post" style="display:inline;">
+    <button type="submit" class="btn btn-reset">はい、リセットする</button>
+  </form>
+
+  <form action="{{ url_for('admin') }}" method="get" style="display:inline;">
+    <button type="submit" class="btn btn-cancel">キャンセル</button>
+  </form>
+</body>
+</html>
+

@@ -1,0 +1,57 @@
+{
+  "orders": [
+    {
+      "number": 1,
+      "items": [
+        {
+          "name": "焼きそば",
+          "quantity": 4
+        }
+      ],
+      "timestamp": 1750480245.7940955,
+      "status": "called"
+    },
+    {
+      "number": 2,
+      "items": [
+        {
+          "name": "ケバブ",
+          "quantity": 4
+        }
+      ],
+      "timestamp": 1750480251.7150476,
+      "status": "called"
+    },
+    {
+      "number": 3,
+      "items": [
+        {
+          "name": "焼きそば",
+          "quantity": 5
+        }
+      ],
+      "timestamp": 1750480412.7242413,
+      "status": "called"
+    },
+    {
+      "number": 4,
+      "items": [
+        {
+          "name": "焼きそば",
+          "quantity": 1
+        },
+        {
+          "name": "ケバブ",
+          "quantity": 1
+        },
+        {
+          "name": "ラムネ",
+          "quantity": 1
+        }
+      ],
+      "timestamp": 1750480442.5215054,
+      "status": "called"
+    }
+  ],
+  "current": 4
+}

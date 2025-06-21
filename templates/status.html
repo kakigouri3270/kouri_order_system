@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <title>注文状況</title>
+  <style>
+    body { font-family: Arial; margin: 2em; }
+    .called { font-size: 2em; color: green; margin-bottom: 1em; }
+  </style>
+</head>
+<body>
+  <h1>呼び出し状況</h1>
+  <div class="called">現在の呼び出し番号: <strong id="current-number">{{ current }}</strong></div>
+
+  <script>
+    async function updateStatus() {
+      const res = await fetch('/api/current_number');
+      const data = await res.json();
+      document.getElementById('current-number').textContent = data.current_number;
+    }
+
+    setInterval(updateStatus, 5000);
+  </script>
+</body>
+</html>

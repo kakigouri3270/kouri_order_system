@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>注文確認</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin-top: 80px;
+    }
+    .order-number {
+      font-size: 6rem;
+      font-weight: bold;
+      color: #ff5722;
+      margin-bottom: 20px;
+    }
+    .status {
+      font-size: 2rem;
+      margin-top: 40px;
+      color: #333;
+      transition: color 0.5s;
+    }
+    .status.ready {
+      color: green;
+      font-weight: bold;
+      animation: blink 1s infinite;
+    }
+    @keyframes blink {
+      0%, 100% {opacity: 1;}
+      50% {opacity: 0.5;}
+    }
+  </style>
+</head>
+<body>
+  <h1>注文ありがとうございました！</h1>
+  <div class="order-number">注文番号: {{ number }}</div>
+  <div class="status">状態を取得中...</div>
+
+  <audio id="notification-sound" src="https://actions.google.com/sounds/v1/alarms/alarm_clock.ogg" preload="auto"></audio>
+
+  <script>
+    const orderNumber = {{ number }};
+    const statusElem = document.querySelector('.status');
+    const notificationSound = document.getElementById('notification-sound');
+    let notified = false;
+
+    async function fetchStatus() {
+      try {
+        const response = await fetch(`/api/order_status/${orderNumber}`);
+        if (!response.ok) throw new Error('レスポンスエラー');
+        const data = await response.json();
+
+        if (data.status) {
+          let display = "不明な状態";
+          let isReady = false;
+          switch(data.status) {
+            case "waiting":
+              display = "調理待ち";
+              statusElem.classList.remove('ready');
+              break;
+            case "called":
+              display = "受取可能です！お越しください！";
+              isReady = true;
+              break;
+            case "done":
+              display = "受け渡し済み";
+              statusElem.classList.remove('ready');
+              break;
+            case "skipped":
+              display = "スキップされた注文";
+              statusElem.classList.remove('ready');
+              break;
+            case "not_found":
+              display = "注文が見つかりません";
+              statusElem.classList.remove('ready');
+              break;
+          }
+          statusElem.textContent = display;
+
+          if (isReady && !notified) {
+            statusElem.classList.add('ready');
+            notificationSound.play().catch(e => console.log("音の再生に失敗しました", e));
+            notified = true;
+          }
+        } else {
+          statusElem.textContent = "状態情報なし";
+          statusElem.classList.remove('ready');
+        }
+      } catch (e) {
+        statusElem.textContent = "状態の取得に失敗しました";
+        statusElem.classList.remove('ready');
+      }
+    }
+
+    fetchStatus();
+    setInterval(fetchStatus, 5000);
+  </script>
+</body>
+</html>

@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>現在の呼び出し番号</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 50px;
+      background-color: #f0f8ff;
+      color: #333;
+    }
+
+    h1 {
+      margin-bottom: 30px;
+    }
+
+    .number-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 30px;
+    }
+
+    .number-card {
+      background-color: #fff;
+      border: 3px solid #007bff;
+      border-radius: 16px;
+      padding: 40px;
+      font-size: 4rem;
+      font-weight: bold;
+      color: #007bff;
+      min-width: 150px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    }
+
+    .message {
+      font-size: 1.5rem;
+      margin-top: 20px;
+      color: #555;
+    }
+  </style>
+</head>
+<body>
+  <h1>現在の呼び出し番号</h1>
+  <div id="current-container">
+    <div class="message">読み込み中...</div>
+  </div>
+
+  <script>
+    async function updateCurrent() {
+      try {
+        const res = await fetch('/api/current_number');
+        if (!res.ok) throw new Error('レスポンスエラー');
+        const data = await res.json();
+        const container = document.getElementById('current-container');
+
+        if (data.current_numbers && data.current_numbers.length > 0) {
+          container.innerHTML = `
+            <div class="number-grid">
+              ${data.current_numbers.map(num => `
+                <div class="number-card">${num}</div>
+              `).join('')}
+            </div>
+            <div class="message">お呼び出し中のお客様はこちらへどうぞ</div>
+          `;
+        } else {
+          container.innerHTML = `<div class="message">現在呼び出し中の番号はありません</div>`;
+        }
+      } catch (err) {
+        console.error("取得失敗", err);
+        document.getElementById('current-container').innerHTML = `<div class="message">番号の取得に失敗しました</div>`;
+      }
+    }
+
+    updateCurrent(); // 初回実行
+    setInterval(updateCurrent, 5000); // 5秒ごとに更新
+  </script>
+</body>
+</html>
+
+

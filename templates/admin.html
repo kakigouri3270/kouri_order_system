@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <title>管理者画面</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    table { border-collapse: collapse; width: 100%; }
+    th, td { border: 1px solid #999; padding: 8px; text-align: center; }
+    th { background-color: #f0f0f0; }
+    .controls { margin-bottom: 1em; }
+    button { padding: 0.4em 0.8em; font-size: 1em; margin: 2px; cursor: pointer; }
+    .status-waiting { color: orange; font-weight: bold; }
+    .status-called { color: blue; font-weight: bold; }
+    .status-done { color: green; font-weight: bold; }
+    .status-skipped { color: gray; font-weight: bold; }
+    .status-cancelled { color: red; font-weight: bold; }
+    .reset-btn { background-color: #d9534f; color: white; border: none; }
+    .reset-confirm { margin-top: 1em; }
+  </style>
+</head>
+<body>
+  <h1>管理者画面</h1>
+
+  <div class="controls">
+    <form method="get" action="/admin" style="display:inline-block;">
+      <label>状態でフィルタ:
+        <select name="status" onchange="this.form.submit()">
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>すべて</option>
+          <option value="waiting" {% if status_filter == 'waiting' %}selected{% endif %}>調理待ち</option>
+          <option value="called" {% if status_filter == 'called' %}selected{% endif %}>呼び出し中</option>
+          <option value="done" {% if status_filter == 'done' %}selected{% endif %}>受け渡し済み</option>
+          <option value="skipped" {% if status_filter == 'skipped' %}selected{% endif %}>スキップ</option>
+          <option value="cancelled" {% if status_filter == 'cancelled' %}selected{% endif %}>キャンセル</option>
+        </select>
+      </label>
+    </form>
+    <p>現在の呼び出し番号: <strong id="current-number">{{ current }}</strong></p>
+  </div>
+
+  <table id="order-table">
+    <thead>
+      <tr>
+        <th>番号</th>
+        <th>注文内容</th>
+        <th>状態</th>
+        <th>操作</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for order in orders %}
+      <tr>
+        <td>{{ order.number }}</td>
+        <td>
+          <ul style="list-style-type:none; padding-left:0; margin:0;">
+            {% for item in order['items'] %}
+              <li>{{ item.name }} × {{ item.quantity }}</li>
+            {% endfor %}
+          </ul>
+        </td>
+        <td class="
+          {% if order.status == 'waiting' %}status-waiting{% elif order.status == 'called' %}status-called
+          {% elif order.status == 'done' %}status-done{% elif order.status == 'skipped' %}status-skipped
+          {% elif order.status == 'cancelled' %}status-cancelled{% endif %}
+        ">
+          {% if order.status == 'waiting' %}調理待ち
+          {% elif order.status == 'called' %}呼び出し中
+          {% elif order.status == 'done' %}受け渡し済み
+          {% elif order.status == 'skipped' %}スキップ
+          {% elif order.status == 'cancelled' %}キャンセル
+          {% else %}不明{% endif %}
+        </td>
+        <td>
+          {% if order.status == 'waiting' %}
+            <form method="post" action="{{ url_for('mark_called', number=order.number) }}" style="display:inline-block;">
+              <button type="submit">呼び出し中にする</button>
+            </form>
+            <form method="post" action="{{ url_for('mark_cancelled', number=order.number) }}" style="display:inline-block;">
+              <button type="submit">キャンセル</button>
+            </form>
+          {% elif order.status == 'called' %}
+            <form method="post" action="{{ url_for('mark_received', number=order.number) }}" style="display:inline-block;">
+              <button type="submit">受け渡し済みにする</button>
+            </form>
+            <form method="post" action="{{ url_for('mark_skipped', number=order.number) }}" style="display:inline-block;">
+              <button type="submit">スキップ</button>
+            </form>
+          {% elif order.status == 'skipped' %}
+            <form method="post" action="{{ url_for('mark_called', number=order.number) }}" style="display:inline-block;">
+              <button type="submit">再呼び出し</button>
+            </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  <form method="get" action="/reset_confirm" class="reset-confirm">
+    <button type="submit" class="reset-btn">全てリセット</button>
+  </form>
+
+  <script>
+    function fetchAndUpdateOrders() {
+      fetch('/api/orders')
+        .then(res => res.json())
+        .then(data => {
+          const tbody = document.querySelector('#order-table tbody');
+          const filter = new URLSearchParams(window.location.search).get('status') || 'all';
+
+          tbody.innerHTML = '';
+          data.forEach(order => {
+            if (filter !== 'all' && order.status !== filter) return;
+
+            const statusClasses = {
+              waiting: 'status-waiting',
+              called: 'status-called',
+              done: 'status-done',
+              skipped: 'status-skipped',
+              cancelled: 'status-cancelled'
+            };
+
+            const statusText = {
+              waiting: '調理待ち',
+              called: '呼び出し中',
+              done: '受け渡し済み',
+              skipped: 'スキップ',
+              cancelled: 'キャンセル'
+            };
+
+            let actions = '';
+            if (order.status === 'waiting') {
+              actions = `
+                <form method="post" action="/mark_called/${order.number}" style="display:inline-block;">
+                  <button type="submit">呼び出し中にする</button>
+                </form>
+                <form method="post" action="/mark_cancelled/${order.number}" style="display:inline-block;">
+                  <button type="submit">キャンセル</button>
+                </form>`;
+            } else if (order.status === 'called') {
+              actions = `
+                <form method="post" action="/mark_received/${order.number}" style="display:inline-block;">
+                  <button type="submit">受け渡し済みにする</button>
+                </form>
+                <form method="post" action="/mark_skipped/${order.number}" style="display:inline-block;">
+                  <button type="submit">スキップ</button>
+                </form>`;
+            } else if (order.status === 'skipped') {
+              actions = `
+                <form method="post" action="/mark_called/${order.number}" style="display:inline-block;">
+                  <button type="submit">再呼び出し</button>
+                </form>`;
+            }
+
+            const row = document.createElement('tr');
+            row.innerHTML = `
+              <td>${order.number}</td>
+              <td>${order.items.map(item => `${item.name} × ${item.quantity}`).join('<br>')}</td>
+              <td class="${statusClasses[order.status] || ''}">${statusText[order.status] || '不明'}</td>
+              <td>${actions}</td>
+            `;
+            tbody.appendChild(row);
+          });
+
+          const current = data.find(o => o.status === 'called');
+          if (current) {
+            document.getElementById('current-number').textContent = current.number;
+          } else {
+            document.getElementById('current-number').textContent = 'なし';
+          }
+        });
+    }
+    setInterval(fetchAndUpdateOrders, 5000);
+  </script>
+</body>
+</html>

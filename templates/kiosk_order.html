@@ -1,0 +1,33 @@
+{% extends "base.html" %}
+{% block title %}注文 - キオスク{% endblock %}
+
+{% block content %}
+<div class="container" style="max-width: 600px; margin: auto; text-align: center;">
+  <h2 class="my-4">ご注文はこちら</h2>
+  <form method="POST" action="{{ url_for('kiosk_order') }}">
+    {% for item in menu %}
+    <div class="card mb-3">
+      <div class="card-body">
+        <h4 class="card-title">{{ item }}</h4>
+        <div class="input-group justify-content-center" style="max-width: 200px; margin: auto;">
+          <input type="hidden" name="item" value="{{ item }}">
+          <button type="button" class="btn btn-secondary btn-sm" onclick="changeQty(this, -1)">-</button>
+          <input type="number" name="quantity" value="0" min="0" class="form-control text-center" readonly>
+          <button type="button" class="btn btn-secondary btn-sm" onclick="changeQty(this, 1)">+</button>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    <button type="submit" class="btn btn-primary btn-lg btn-block mt-4">注文する</button>
+  </form>
+</div>
+
+<script>
+function changeQty(button, delta) {
+  const input = button.parentElement.querySelector('input[name="quantity"]');
+  let val = parseInt(input.value) + delta;
+  if (val < 0) val = 0;
+  input.value = val;
+}
+</script>
+{% endblock %}
