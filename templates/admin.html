@@ -72,23 +72,13 @@
         </td>
         <td>
           {% if order.status == 'waiting' %}
-            <form method="post" action="{{ url_for('mark_called', number=order.number) }}" style="display:inline-block;">
-              <button type="submit">呼び出し中にする</button>
-            </form>
-            <form method="post" action="{{ url_for('mark_cancelled', number=order.number) }}" style="display:inline-block;">
-              <button type="submit">キャンセル</button>
-            </form>
+            <button class="action-btn" data-action="mark_called" data-number="{{ order.number }}">呼び出し中にする</button>
+            <button class="action-btn" data-action="mark_cancelled" data-number="{{ order.number }}">キャンセル</button>
           {% elif order.status == 'called' %}
-            <form method="post" action="{{ url_for('mark_received', number=order.number) }}" style="display:inline-block;">
-              <button type="submit">受け渡し済みにする</button>
-            </form>
-            <form method="post" action="{{ url_for('mark_skipped', number=order.number) }}" style="display:inline-block;">
-              <button type="submit">スキップ</button>
-            </form>
+            <button class="action-btn" data-action="mark_received" data-number="{{ order.number }}">受け渡し済みにする</button>
+            <button class="action-btn" data-action="mark_skipped" data-number="{{ order.number }}">スキップ</button>
           {% elif order.status == 'skipped' %}
-            <form method="post" action="{{ url_for('mark_called', number=order.number) }}" style="display:inline-block;">
-              <button type="submit">再呼び出し</button>
-            </form>
+            <button class="action-btn" data-action="mark_called" data-number="{{ order.number }}">再呼び出し</button>
           {% endif %}
         </td>
       </tr>
@@ -96,81 +86,133 @@
     </tbody>
   </table>
 
+  <div class="pagination" style="margin-top: 1em; text-align: center;">
+    {% if page > 1 %}
+      <a href="{{ url_for('admin', status=status_filter, page=page-1) }}">◀ 前へ</a>
+    {% else %}
+      <span style="color: #ccc;">◀ 前へ</span>
+    {% endif %}
+
+    {% for p in range(1, total_pages + 1) %}
+      {% if p == page %}
+        <strong style="margin: 0 5px;">{{ p }}</strong>
+      {% else %}
+        <a href="{{ url_for('admin', status=status_filter, page=p) }}" style="margin: 0 5px;">{{ p }}</a>
+      {% endif %}
+    {% endfor %}
+
+    {% if page < total_pages %}
+      <a href="{{ url_for('admin', status=status_filter, page=page+1) }}">次へ ▶</a>
+    {% else %}
+      <span style="color: #ccc;">次へ ▶</span>
+    {% endif %}
+  </div>
+
   <form method="get" action="/reset_confirm" class="reset-confirm">
     <button type="submit" class="reset-btn">全てリセット</button>
   </form>
 
   <script>
-    function fetchAndUpdateOrders() {
-      fetch('/api/orders')
-        .then(res => res.json())
-        .then(data => {
-          const tbody = document.querySelector('#order-table tbody');
-          const filter = new URLSearchParams(window.location.search).get('status') || 'all';
+    async function fetchAndUpdateOrders() {
+      try {
+        const res = await fetch('/api/orders');
+        if (!res.ok) throw new Error('注文一覧取得に失敗しました');
+        const data = await res.json();
 
-          tbody.innerHTML = '';
-          data.forEach(order => {
-            if (filter !== 'all' && order.status !== filter) return;
+        const tbody = document.querySelector('#order-table tbody');
+        const urlParams = new URLSearchParams(window.location.search);
+        const filter = urlParams.get('status') || 'all';
 
-            const statusClasses = {
-              waiting: 'status-waiting',
-              called: 'status-called',
-              done: 'status-done',
-              skipped: 'status-skipped',
-              cancelled: 'status-cancelled'
-            };
+        tbody.innerHTML = '';
+        data.forEach(order => {
+          if (filter !== 'all' && order.status !== filter) return;
 
-            const statusText = {
-              waiting: '調理待ち',
-              called: '呼び出し中',
-              done: '受け渡し済み',
-              skipped: 'スキップ',
-              cancelled: 'キャンセル'
-            };
+          const statusClasses = {
+            waiting: 'status-waiting',
+            called: 'status-called',
+            done: 'status-done',
+            skipped: 'status-skipped',
+            cancelled: 'status-cancelled'
+          };
 
-            let actions = '';
-            if (order.status === 'waiting') {
-              actions = `
-                <form method="post" action="/mark_called/${order.number}" style="display:inline-block;">
-                  <button type="submit">呼び出し中にする</button>
-                </form>
-                <form method="post" action="/mark_cancelled/${order.number}" style="display:inline-block;">
-                  <button type="submit">キャンセル</button>
-                </form>`;
-            } else if (order.status === 'called') {
-              actions = `
-                <form method="post" action="/mark_received/${order.number}" style="display:inline-block;">
-                  <button type="submit">受け渡し済みにする</button>
-                </form>
-                <form method="post" action="/mark_skipped/${order.number}" style="display:inline-block;">
-                  <button type="submit">スキップ</button>
-                </form>`;
-            } else if (order.status === 'skipped') {
-              actions = `
-                <form method="post" action="/mark_called/${order.number}" style="display:inline-block;">
-                  <button type="submit">再呼び出し</button>
-                </form>`;
-            }
+          const statusText = {
+            waiting: '調理待ち',
+            called: '呼び出し中',
+            done: '受け渡し済み',
+            skipped: 'スキップ',
+            cancelled: 'キャンセル'
+          };
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-              <td>${order.number}</td>
-              <td>${order.items.map(item => `${item.name} × ${item.quantity}`).join('<br>')}</td>
-              <td class="${statusClasses[order.status] || ''}">${statusText[order.status] || '不明'}</td>
-              <td>${actions}</td>
-            `;
-            tbody.appendChild(row);
-          });
-
-          const current = data.find(o => o.status === 'called');
-          if (current) {
-            document.getElementById('current-number').textContent = current.number;
-          } else {
-            document.getElementById('current-number').textContent = 'なし';
+          let actions = '';
+          if (order.status === 'waiting') {
+            actions = `
+              <button class="action-btn" data-action="mark_called" data-number="${order.number}">呼び出し中にする</button>
+              <button class="action-btn" data-action="mark_cancelled" data-number="${order.number}">キャンセル</button>`;
+          } else if (order.status === 'called') {
+            actions = `
+              <button class="action-btn" data-action="mark_received" data-number="${order.number}">受け渡し済みにする</button>
+              <button class="action-btn" data-action="mark_skipped" data-number="${order.number}">スキップ</button>`;
+          } else if (order.status === 'skipped') {
+            actions = `
+              <button class="action-btn" data-action="mark_called" data-number="${order.number}">再呼び出し</button>`;
           }
+
+          const row = document.createElement('tr');
+          row.innerHTML = `
+            <td>${order.number}</td>
+            <td>${order.items.map(item => `${item.name} × ${item.quantity}`).join('<br>')}</td>
+            <td class="${statusClasses[order.status] || ''}">${statusText[order.status] || '不明'}</td>
+            <td>${actions}</td>
+          `;
+          tbody.appendChild(row);
         });
+
+        const current = data.find(o => o.status === 'called');
+        if (current) {
+          document.getElementById('current-number').textContent = current.number;
+        } else {
+          document.getElementById('current-number').textContent = 'なし';
+        }
+      } catch (e) {
+        console.error(e);
+      }
     }
+
+    // 5秒毎に自動更新
     setInterval(fetchAndUpdateOrders, 5000);
+
+    // ボタンクリックを非同期処理に置き換え
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button.action-btn');
+      if (!btn) return;
+
+      e.preventDefault();
+
+      const action = btn.dataset.action;
+      const number = btn.dataset.number;
+
+      try {
+        const res = await fetch(`/${action}/${number}`, {
+          method: 'POST',
+          headers: {
+            'X-Requested-With': 'XMLHttpRequest',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({})  // 必要なら何かデータを入れる
+        });
+
+        if (!res.ok) throw new Error(`操作に失敗しました (status ${res.status})`);
+
+        const result = await res.json();
+        if (!result.success) throw new Error(result.message || '不明なエラー');
+
+        // 操作成功したら最新データを取得して画面を更新
+        await fetchAndUpdateOrders();
+
+      } catch (err) {
+        alert(err.message);
+      }
+    });
   </script>
 </body>
 </html>
