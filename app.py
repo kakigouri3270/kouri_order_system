@@ -7,6 +7,7 @@ app = Flask(__name__)
 
 ORDERS_FILE = 'orders.json'
 TIMEOUT = 600  # 10分
+ORDERS_PER_PAGE = 10  # 1ページあたりの表示数
 
 def load_orders():
     if not os.path.exists(ORDERS_FILE):
@@ -18,6 +19,10 @@ def load_orders():
 def save_orders(data):
     with open(ORDERS_FILE, 'w', encoding='utf-8') as f:
         json.dump(data, f, ensure_ascii=False, indent=2)
+
+def is_ajax():
+    # XMLHttpRequestによるAjaxリクエストかどうか判定
+    return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 @app.route('/')
 def home():
@@ -50,61 +55,107 @@ def order():
 
 @app.route('/admin')
 def admin():
-    data = load_orders()
-    now = time.time()
-    for order in data['orders']:
-        if order['status'] == 'waiting' and now - order['timestamp'] > TIMEOUT:
-            order['status'] = 'skipped'
-    save_orders(data)
-
     status_filter = request.args.get('status', 'all')
-    if status_filter == 'all':
-        filtered_orders = data['orders']
-    else:
-        filtered_orders = [o for o in data['orders'] if o['status'] == status_filter]
+    page = request.args.get('page', 1, type=int)
 
-    return render_template('admin.html', orders=filtered_orders, current=data['current'], status_filter=status_filter)
+    all_data = load_orders()
+    all_orders = all_data['orders']
+
+    # 状態フィルタ
+    if status_filter != 'all':
+        filtered_orders = [o for o in all_orders if o['status'] == status_filter]
+    else:
+        filtered_orders = all_orders
+
+    # 注文番号で降順にソート（大きい番号を先頭に）
+    filtered_orders.sort(key=lambda o: o['number'], reverse=True)
+
+    total_orders = len(filtered_orders)
+
+    # ページごとにスライス
+    start = (page - 1) * ORDERS_PER_PAGE
+    end = start + ORDERS_PER_PAGE
+    page_orders = filtered_orders[start:end]
+
+    # 現在呼び出し中の注文番号
+    current = next((o['number'] for o in all_orders if o['status'] == 'called'), 'なし')
+
+    # 総ページ数を計算（切り上げ）
+    total_pages = (total_orders + ORDERS_PER_PAGE - 1) // ORDERS_PER_PAGE
+
+    return render_template(
+        'admin.html',
+        orders=page_orders,
+        status_filter=status_filter,
+        current=current,
+        page=page,
+        total_pages=total_pages
+    )
 
 @app.route('/mark_called/<int:number>', methods=['POST'])
 def mark_called(number):
     data = load_orders()
+    updated = False
     for order in data['orders']:
         if order['number'] == number:
             order['status'] = 'called'
             data['current'] = number
+            updated = True
             break
     save_orders(data)
-    return redirect(url_for('admin'))
+
+    if is_ajax():
+        return jsonify({"success": updated})
+    else:
+        return redirect(url_for('admin'))
 
 @app.route('/mark_received/<int:number>', methods=['POST'])
 def mark_received(number):
     data = load_orders()
+    updated = False
     for order in data['orders']:
         if order['number'] == number:
             order['status'] = 'done'
+            updated = True
             break
     save_orders(data)
-    return redirect(url_for('admin'))
+
+    if is_ajax():
+        return jsonify({"success": updated})
+    else:
+        return redirect(url_for('admin'))
 
 @app.route('/mark_skipped/<int:number>', methods=['POST'])
 def mark_skipped(number):
     data = load_orders()
+    updated = False
     for order in data['orders']:
         if order['number'] == number:
             order['status'] = 'skipped'
+            updated = True
             break
     save_orders(data)
-    return redirect(url_for('admin'))
+
+    if is_ajax():
+        return jsonify({"success": updated})
+    else:
+        return redirect(url_for('admin'))
 
 @app.route('/mark_cancelled/<int:number>', methods=['POST'])
 def mark_cancelled(number):
     data = load_orders()
+    updated = False
     for order in data['orders']:
         if order['number'] == number:
             order['status'] = 'cancelled'
+            updated = True
             break
     save_orders(data)
-    return redirect(url_for('admin'))
+
+    if is_ajax():
+        return jsonify({"success": updated})
+    else:
+        return redirect(url_for('admin'))
 
 @app.route('/api/orders')
 def api_orders():
@@ -151,7 +202,6 @@ def kiosk_order():
         })
         save_orders(data)
 
-        # 注文完了後は確認ページに遷移
         return render_template('kiosk_confirm.html', number=new_number)
 
     return render_template('kiosk_order.html', menu=menu, current=data.get('current', 0))
@@ -159,21 +209,18 @@ def kiosk_order():
 @app.route('/api/current_number')
 def api_current_number():
     data = load_orders()
-    # 呼び出し中の注文すべての番号をリストとして返す
     called_numbers = [order['number'] for order in data['orders'] if order['status'] == 'called']
     return jsonify({"current_numbers": called_numbers})
 
 @app.route('/current')
 def current():
     data = load_orders()
-    # 呼び出し中の注文番号を初期表示用に渡す（無くても動く）
     called_orders = [order for order in data['orders'] if order['status'] == 'called']
     current_number = called_orders[0]['number'] if called_orders else 0
     return render_template('current.html', current=current_number)
 
-
-
 if __name__ == '__main__':
     app.run(debug=True)
+
 
 
