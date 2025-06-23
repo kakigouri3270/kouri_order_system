@@ -219,6 +219,28 @@ def current():
     current_number = called_orders[0]['number'] if called_orders else 0
     return render_template('current.html', current=current_number)
 
+@app.route('/api/check_and_update_status')
+def check_and_update_status():
+    data = load_orders()
+    now = time.time()
+    updated = False
+
+    for order in data['orders']:
+        if order['status'] == 'called':
+            elapsed = now - order['timestamp']
+            if elapsed > 600:
+                order['status'] = 'cancelled'
+                updated = True
+            elif elapsed > 300:
+                order['timestamp'] = now  # 5分経過で再呼び出し
+                updated = True
+
+    if updated:
+        save_orders(data)
+
+    return jsonify({"updated": updated})
+
+
 if __name__ == '__main__':
     app.run(debug=True)
 
