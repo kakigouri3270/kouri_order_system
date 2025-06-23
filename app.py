@@ -21,7 +21,6 @@ def save_orders(data):
         json.dump(data, f, ensure_ascii=False, indent=2)
 
 def is_ajax():
-    # XMLHttpRequestによるAjaxリクエストかどうか判定
     return request.headers.get('X-Requested-With') == 'XMLHttpRequest'
 
 @app.route('/')
@@ -61,26 +60,19 @@ def admin():
     all_data = load_orders()
     all_orders = all_data['orders']
 
-    # 状態フィルタ
     if status_filter != 'all':
         filtered_orders = [o for o in all_orders if o['status'] == status_filter]
     else:
         filtered_orders = all_orders
 
-    # 注文番号で降順にソート（大きい番号を先頭に）
     filtered_orders.sort(key=lambda o: o['number'], reverse=True)
 
     total_orders = len(filtered_orders)
-
-    # ページごとにスライス
     start = (page - 1) * ORDERS_PER_PAGE
     end = start + ORDERS_PER_PAGE
     page_orders = filtered_orders[start:end]
 
-    # 現在呼び出し中の注文番号
     current = next((o['number'] for o in all_orders if o['status'] == 'called'), 'なし')
-
-    # 総ページ数を計算（切り上げ）
     total_pages = (total_orders + ORDERS_PER_PAGE - 1) // ORDERS_PER_PAGE
 
     return render_template(
@@ -96,9 +88,11 @@ def admin():
 def mark_called(number):
     data = load_orders()
     updated = False
+    now = time.time()
     for order in data['orders']:
         if order['number'] == number:
             order['status'] = 'called'
+            order['timestamp'] = now   # ← ここを追加
             data['current'] = number
             updated = True
             break
@@ -243,6 +237,3 @@ def check_and_update_status():
 
 if __name__ == '__main__':
     app.run(debug=True)
-
-
-
