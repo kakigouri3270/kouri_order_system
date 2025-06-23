@@ -214,5 +214,16 @@
       }
     });
   </script>
+<script>
+  setInterval(() => {
+    fetch('/api/check_and_update_status')
+      .then(res => res.json())
+      .then(data => {
+        if (data.updated) {
+          location.reload();  // 状態が変わったら再読み込み
+        }
+      });
+  }, 60000); // 60秒ごと
+</script>
 </body>
 </html>
