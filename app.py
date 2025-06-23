@@ -234,6 +234,9 @@ def check_and_update_status():
 
     return jsonify({"updated": updated})
 
+@app.route('/waiting/<int:number>')
+def waiting(number):
+    return render_template('waiting.html', number=number)
 
 if __name__ == '__main__':
     app.run(debug=True)
