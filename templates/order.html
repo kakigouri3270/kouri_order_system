@@ -85,11 +85,31 @@
       font-size: 1.2em;
       color: #333;
     }
+    /* 通知準備ボタンのスタイル */
+    #notify-init-btn {
+      display: block;
+      margin: 1em auto 2em auto;
+      padding: 1em 2em;
+      font-size: 1.2em;
+      background-color: #28a745;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+    #notify-init-btn:hover {
+      background-color: #1e7e34;
+    }
   </style>
 </head>
 <body>
   <h1>注文ページ</h1>
-  <form method="post">
+
+  <!-- 通知初期化ボタン -->
+  <button id="notify-init-btn">通知の準備をする（ここを一度押してください）</button>
+
+  <form method="post" id="order-form" style="display:none;">
     {% for item in menu %}
       <div class="menu-item">
         <label for="item-{{ loop.index }}">{{ item }}</label>
@@ -103,7 +123,8 @@
     {% endfor %}
     <button class="submit-btn" type="submit">注文する</button>
   </form>
-  <p class="current-number">現在の呼び出し番号：<strong>{{ current }}</strong></p>
+
+  <p class="current-number">現在の呼び出し番号：<strong id="current-number">{{ current }}</strong></p>
 
   <script>
     function increase(id) {
@@ -116,6 +137,93 @@
       const current = parseInt(input.value || "0");
       if (current > 0) input.value = current - 1;
     }
+
+    let audioInitialized = false;
+
+    // 音声初期化と即閉じを行う関数（iOS制限対策）
+    function initAudio() {
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        audioCtx.close();
+        audioInitialized = true;
+      } catch(e) {
+        console.warn('AudioContextの初期化失敗:', e);
+      }
+    }
+
+    function notifyUser() {
+      if (!audioInitialized) {
+        // 初期化されてなければ音もバイブも鳴らさない
+        console.log('通知の初期化がまだです');
+        return;
+      }
+
+      // Audio APIで短いビープ音を3回鳴らす
+      try {
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+
+        for(let i = 0; i < 3; i++) {
+          const osc = audioCtx.createOscillator();
+          const gainNode = audioCtx.createGain();
+
+          osc.type = 'sine';
+          osc.frequency.value = 800;
+          gainNode.gain.value = 0.2;
+
+          osc.connect(gainNode);
+          gainNode.connect(audioCtx.destination);
+
+          osc.start(audioCtx.currentTime + i * 0.4);
+          osc.stop(audioCtx.currentTime + i * 0.4 + 0.2);
+        }
+
+        // 終了後にAudioContextを閉じる
+        setTimeout(() => {
+          audioCtx.close();
+        }, 1500);
+      } catch(e) {
+        console.warn('Audio API利用不可:', e);
+      }
+
+      // バイブレーション（対応していれば）
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 200]);
+      }
+    }
+
+    async function checkCurrentNumber() {
+      try {
+        const res = await fetch('/api/current_number');
+        if (!res.ok) throw new Error('通信失敗');
+        const data = await res.json();
+        const currentElem = document.getElementById('current-number');
+
+        const newCurrent = data.current_numbers.length > 0 ? Math.min(...data.current_numbers) : 'なし';
+
+        if (currentElem.textContent !== String(newCurrent)) {
+          currentElem.textContent = newCurrent;
+          notifyUser();
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    window.addEventListener('load', () => {
+      const notifyBtn = document.getElementById('notify-init-btn');
+      const orderForm = document.getElementById('order-form');
+
+      // ボタン押したら初期化して、フォーム表示、ボタン非表示
+      notifyBtn.addEventListener('click', () => {
+        initAudio();
+        orderForm.style.display = 'block';
+        notifyBtn.style.display = 'none';
+
+        // 初期チェックと5秒ごとにチェック開始
+        checkCurrentNumber();
+        setInterval(checkCurrentNumber, 5000);
+      });
+    });
   </script>
 </body>
 </html>
